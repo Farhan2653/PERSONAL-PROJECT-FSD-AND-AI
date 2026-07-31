@@ -1,0 +1,142 @@
+import cv2
+import numpy as np
+
+try:
+    import mediapipe as mp
+    _mp_available = True
+    _has_solutions = hasattr(mp, 'solutions')
+except Exception:
+    _mp_available = False
+    _has_solutions = False
+
+if _has_solutions:
+    mp_face_mesh = mp.solutions.face_mesh
+    mp_face_detection = mp.solutions.face_detection
+    _face_mesh = mp_face_mesh.FaceMesh(
+        max_num_faces=1,
+        refine_landmarks=True,
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.5,
+    )
+    _face_detection = mp_face_detection.FaceDetection(min_detection_confidence=0.5)
+elif hasattr(mp, 'tasks'):
+    _face_mesh = None
+    _face_detection = None
+else:
+    _face_mesh = None
+    _face_detection = None
+
+
+class FaceAnalyzer:
+    def __init__(self):
+        self._mesh = _face_mesh
+        self._detection = _face_detection
+        self._mp_available = _mp_available and _has_solutions
+        self.frame_count = 0
+
+    def analyze_frame(self, frame):
+        self.frame_count += 1
+        h, w, _ = frame.shape
+        result = {
+            "face_detected": False,
+            "eye_contact_score": 0.0,
+            "confidence_score": 0.0,
+            "face_landmarks": None,
+            "mouth_open": False,
+            "head_pose": {"pitch": 0.0, "yaw": 0.0, "roll": 0.0},
+        }
+
+        if self._mp_available and self._mesh is not None:
+            try:
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                face_results = self._mesh.process(rgb)
+                if face_results and face_results.multi_face_landmarks:
+                    result["face_detected"] = True
+                    landmarks = face_results.multi_face_landmarks[0]
+                    result["face_landmarks"] = landmarks
+                    result["eye_contact_score"] = self._calc_eye_contact(landmarks, w, h)
+                    result["mouth_open"] = self._is_mouth_open(landmarks, w, h)
+                    nose_tip = landmarks.landmark[1]
+                    nose_tip_x = nose_tip.x * w
+                    nose_tip_y = nose_tip.y * h
+                    face_center_x = w / 2
+                    face_center_y = h / 2
+                    head_offset = np.sqrt((nose_tip_x - face_center_x) ** 2 + (nose_tip_y - face_center_y) ** 2)
+                    result["head_pose"]["yaw"] = min(head_offset / (w / 2), 1.0)
+                if face_results and hasattr(face_results, 'detections'):
+                    result["confidence_score"] = 0.5
+            except Exception:
+                pass
+
+        if not result["face_detected"]:
+            result = self._opencv_fallback(frame, result)
+
+        return result
+
+    def _calc_eye_contact(self, landmarks, w, h):
+        LEFT_EYE = [33, 133, 160, 159, 158, 157, 173]
+        RIGHT_EYE = [362, 263, 385, 386, 387, 388, 466]
+        try:
+            left = self._ear(landmarks, LEFT_EYE, w, h)
+            right = self._ear(landmarks, RIGHT_EYE, w, h)
+            return min(max((left + right) / 2.0 * 3.0, 0.0), 1.0)
+        except Exception:
+            return 0.5
+
+    def _ear(self, landmarks, indices, w, h):
+        try:
+            points = [(landmarks.landmark[i].x * w, landmarks.landmark[i].y * h) for i in indices if i < len(landmarks.landmark)]
+            if len(points) < 6:
+                return 0.0
+            v1 = np.linalg.norm(np.array(points[1]) - np.array(points[5]))
+            v2 = np.linalg.norm(np.array(points[2]) - np.array(points[4]))
+            h_len = np.linalg.norm(np.array(points[0]) - np.array(points[3]))
+            return (v1 + v2) / (2.0 * h_len) if h_len > 0 else 0.0
+        except Exception:
+            return 0.0
+
+    def _is_mouth_open(self, landmarks, w, h):
+        try:
+            upper = landmarks.landmark[13]
+            lower = landmarks.landmark[14]
+            if upper.visibility < 0.5 or lower.visibility < 0.5:
+                return False
+            return abs(upper.y - lower.y) * h > h * 0.04
+        except Exception:
+            return False
+
+    def _opencv_fallback(self, frame, result):
+        try:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+            face_cascade = cv2.CascadeClassifier(cascade_path)
+            if face_cascade.empty():
+                result["face_detected"] = False
+                result["confidence_score"] = 0.3
+                result["eye_contact_score"] = 0.5
+                return result
+            faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+            if len(faces) > 0:
+                result["face_detected"] = True
+                result["confidence_score"] = 0.7
+                result["eye_contact_score"] = 0.5
+        except Exception:
+            result["face_detected"] = False
+            result["confidence_score"] = 0.3
+            result["eye_contact_score"] = 0.5
+        return result
+
+    def calculate_body_language_score(self, frame_count, face_detected_count, eye_contact_avg, confidence_avg):
+        if frame_count == 0:
+            return 0.0
+        detection_rate = face_detected_count / frame_count
+        eye_contact_factor = min(eye_contact_avg * 2.0, 1.0)
+        base_score = detection_rate * 0.4 + eye_contact_factor * 0.4 + confidence_avg * 0.2
+        return round(min(max(base_score, 0.0), 1.0) * 100, 1)
+
+    def close(self):
+        if self._mesh:
+            try:
+                self._mesh.close()
+            except Exception:
+                pass

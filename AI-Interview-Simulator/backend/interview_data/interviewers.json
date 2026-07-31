@@ -1,0 +1,78 @@
+{
+  "google": {
+    "name": "Google Interviewer",
+    "style": "technical and detail-oriented",
+    "tone": "formal and analytical",
+    "focusAreas": ["problem-solving", "system design", "technical depth", "coding fundamentals"],
+    "questions": [
+      "Tell me about a time you solved a complex technical problem at scale.",
+      "How would you design a URL shortener system like Bitly?",
+      "Given an array of integers, find the longest subarray with sum equal to zero.",
+      "How do you handle ambiguity in requirements during a project?",
+      "Explain a time you had to make a trade-off between speed and quality."
+    ],
+    "evaluationCriteria": {
+      "technicalDepth": 0.3,
+      "problemSolving": 0.3,
+      "communication": 0.2,
+      "clarity": 0.2
+    }
+  },
+  "amazon": {
+    "name": "Amazon Interviewer",
+    "style": "leadership-principle focused and behavioral",
+    "tone": "direct and structured",
+    "focusAreas": ["leadership principles", "customer obsession", "ownership", "delivering results"],
+    "questions": [
+      "Tell me about a time you disagreed with your manager. How did you handle it?",
+      "Describe a situation where you took ownership of a project and delivered results.",
+      "How do you prioritize when you have multiple competing deadlines?",
+      "Tell me about a time you failed and what you learned from it.",
+      "How do you ensure customer satisfaction in a product you own?"
+    ],
+    "evaluationCriteria": {
+      "leadership": 0.3,
+      "ownership": 0.25,
+      "customerFocus": 0.25,
+      "communication": 0.2
+    }
+  },
+  "meta": {
+    "name": "Meta Interviewer",
+    "style": "fast-paced and product-oriented",
+    "tone": "casual but probing",
+    "focusAreas": ["product sense", "system design", "coding", "impact and growth"],
+    "questions": [
+      "How would you measure the success of a new Facebook feature?",
+      "Design the news feed algorithm for a social media platform.",
+      "Given a list of intervals, merge all overlapping intervals.",
+      "How would you approach building a feature that increases user engagement by 10%?",
+      "Tell me about a time you had to make a decision with incomplete data."
+    ],
+    "evaluationCriteria": {
+      "productSense": 0.3,
+      "problemSolving": 0.25,
+      "impactThinking": 0.25,
+      "communication": 0.2
+    }
+  },
+  "microsoft": {
+    "name": "Microsoft Interviewer",
+    "style": "growth mindset focused and collaborative",
+    "tone": "thoughtful and collaborative",
+    "focusAreas": ["growth mindset", "collaboration", "technical skills", "mission alignment"],
+    "questions": [
+      "How do you foster collaboration in a cross-functional team?",
+      "Describe a time you had to learn a new technology quickly to solve a problem.",
+      "How would you design a caching layer for a high-traffic web application?",
+      "Tell me about a time you received negative feedback and how you responded.",
+      "How do you balance innovation with stability in a product?"
+    ],
+    "evaluationCriteria": {
+      "growthMindset": 0.3,
+      "collaboration": 0.25,
+      "technicalDepth": 0.25,
+      "communication": 0.2
+    }
+  }
+}
