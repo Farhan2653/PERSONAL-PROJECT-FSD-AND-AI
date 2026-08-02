@@ -10,28 +10,26 @@ except Exception:
     _has_solutions = False
 
 if _has_solutions:
-    mp_face_mesh = mp.solutions.face_mesh
-    mp_face_detection = mp.solutions.face_detection
-    _face_mesh = mp_face_mesh.FaceMesh(
-        max_num_faces=1,
-        refine_landmarks=True,
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5,
-    )
-    _face_detection = mp_face_detection.FaceDetection(min_detection_confidence=0.5)
-elif hasattr(mp, 'tasks'):
-    _face_mesh = None
-    _face_detection = None
+    try:
+        mp_face_mesh = mp.solutions.face_mesh
+        _face_mesh = mp_face_mesh.FaceMesh(
+            max_num_faces=1,
+            refine_landmarks=True,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5,
+        )
+    except Exception:
+        _face_mesh = None
+        _mp_available = False
 else:
     _face_mesh = None
-    _face_detection = None
+    _mp_available = False
 
 
 class FaceAnalyzer:
     def __init__(self):
         self._mesh = _face_mesh
-        self._detection = _face_detection
-        self._mp_available = _mp_available and _has_solutions
+        self._mp_available = _mp_available and self._mesh is not None
         self.frame_count = 0
 
     def analyze_frame(self, frame):
@@ -53,7 +51,7 @@ class FaceAnalyzer:
                 if face_results and face_results.multi_face_landmarks:
                     result["face_detected"] = True
                     landmarks = face_results.multi_face_landmarks[0]
-                    result["face_landmarks"] = landmarks
+                    result["face_landmarks"] = [[lm.x, lm.y, lm.z] for lm in landmarks.landmark]
                     result["eye_contact_score"] = self._calc_eye_contact(landmarks, w, h)
                     result["mouth_open"] = self._is_mouth_open(landmarks, w, h)
                     nose_tip = landmarks.landmark[1]
@@ -63,9 +61,8 @@ class FaceAnalyzer:
                     face_center_y = h / 2
                     head_offset = np.sqrt((nose_tip_x - face_center_x) ** 2 + (nose_tip_y - face_center_y) ** 2)
                     result["head_pose"]["yaw"] = min(head_offset / (w / 2), 1.0)
-                if face_results and hasattr(face_results, 'detections'):
                     result["confidence_score"] = 0.5
-            except Exception:
+            except Exception as e:
                 pass
 
         if not result["face_detected"]:

@@ -168,15 +168,37 @@ function QuestionPanel({ company, questionIndex, totalQuestions, question, onSub
     if (fullAnswer.length > 10) {
       const wordCount = fullAnswer.split(/\s+/).filter(Boolean).length;
       if (wordCount < 15 && !isFollowUpModeRef.current) {
-        const followUpQuestions = [
-          "Could you please elaborate on that?",
-          "Can you give me a specific example?",
-          "Tell me more about your thought process.",
-          "What was the outcome of that situation?",
-        ];
-        setFollowUp(followUpQuestions[Math.floor(Math.random() * followUpQuestions.length)]);
+        const lowerAnswer = fullAnswer.toLowerCase();
+        let followUpQ = null;
+
+        if (lowerAnswer.includes('team') || lowerAnswer.includes('collaborat')) {
+          followUpQ = 'Can you tell me more about the team dynamics and your specific role?';
+        } else if (lowerAnswer.includes('challenge') || lowerAnswer.includes('difficult')) {
+          followUpQ = 'What was the biggest obstacle you faced and how did you overcome it?';
+        } else if (lowerAnswer.includes('learn') || lowerAnswer.includes('new')) {
+          followUpQ = 'What was the most challenging part of learning that new technology?';
+        } else if (lowerAnswer.includes('fail') || lowerAnswer.includes('mistake')) {
+          followUpQ = 'How did you recover from that failure and what specific steps did you take?';
+        } else if (lowerAnswer.includes('customer') || lowerAnswer.includes('user')) {
+          followUpQ = 'How did you measure the impact of your solution on users?';
+        } else if (lowerAnswer.includes('scale') || lowerAnswer.includes('million')) {
+          followUpQ = 'What bottlenecks did you encounter when scaling, and how did you resolve them?';
+        } else if (lowerAnswer.includes('decision') || lowerAnswer.includes('trade')) {
+          followUpQ = 'What factors were most important in weighing that decision?';
+        } else if (lowerAnswer.includes('priority') || lowerAnswer.includes('deadline')) {
+          followUpQ = 'How did you communicate delays or changes to stakeholders?';
+        } else {
+          const genericFollowUps = [
+            'Could you elaborate on that with a specific example?',
+            'What would you do differently if you had more time or resources?',
+            'How did that experience shape your approach to similar situations afterward?',
+            'What metrics or indicators told you your approach was working?',
+          ];
+          followUpQ = genericFollowUps[Math.floor(Math.random() * genericFollowUps.length)];
+        }
+
+        setFollowUp(followUpQ);
         setIsFollowUpMode(true);
-        setFollowUp(prev => prev);
       } else {
         handleSubmitAnswer(fullAnswer);
       }
