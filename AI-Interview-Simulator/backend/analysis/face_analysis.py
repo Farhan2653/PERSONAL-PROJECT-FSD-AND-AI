@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import sys
 import os
+from contextlib import redirect_stderr
 from io import StringIO
 
 _mp_available = False
@@ -17,19 +18,28 @@ def _try_import_mediapipe():
         _has_solutions = hasattr(mp, 'solutions')
         if _has_solutions:
             try:
-                old_stderr = sys.stderr
-                sys.stderr = StringIO()
-                mp_face_mesh = mp.solutions.face_mesh
-                _face_mesh = mp_face_mesh.FaceMesh(
-                    max_num_faces=1,
-                    refine_landmarks=True,
-                    min_detection_confidence=0.5,
-                    min_tracking_confidence=0.5,
-                )
-                sys.stderr = old_stderr
-                _mp_available = True
+                devnull = open(os.devnull, 'w')
+                old_stderr_fd = os.dup(2)
+                old_stderr_py = sys.stderr
+                sys.stderr = devnull
+                os.dup2(devnull.fileno(), 2)
+                try:
+                    mp_face_mesh = mp.solutions.face_mesh
+                    _face_mesh = mp_face_mesh.FaceMesh(
+                        max_num_faces=1,
+                        refine_landmarks=True,
+                        min_detection_confidence=0.5,
+                        min_tracking_confidence=0.5,
+                    )
+                except Exception:
+                    _face_mesh = None
+                finally:
+                    sys.stderr = old_stderr_py
+                    os.dup2(old_stderr_fd, 2)
+                    os.close(old_stderr_fd)
+                    devnull.close()
+                _mp_available = _face_mesh is not None
             except Exception:
-                sys.stderr = old_stderr
                 _face_mesh = None
                 _mp_available = False
         else:

@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import sys
+import os
 from io import StringIO
 
 _has_mediapipe = False
@@ -16,14 +17,23 @@ def _try_init_mediapipe():
         import mediapipe as mp
         if hasattr(mp, 'solutions'):
             try:
-                _mp_pose = mp.solutions.pose
-                old_stderr = sys.stderr
-                sys.stderr = StringIO()
-                _pose = _mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
-                sys.stderr = old_stderr
-                _has_mediapipe = True
+                devnull = open(os.devnull, 'w')
+                old_stderr_fd = os.dup(2)
+                old_stderr_py = sys.stderr
+                sys.stderr = devnull
+                os.dup2(devnull.fileno(), 2)
+                try:
+                    _mp_pose = mp.solutions.pose
+                    _pose = _mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+                except Exception:
+                    _pose = None
+                finally:
+                    sys.stderr = old_stderr_py
+                    os.dup2(old_stderr_fd, 2)
+                    os.close(old_stderr_fd)
+                    devnull.close()
+                _has_mediapipe = _pose is not None
             except Exception:
-                sys.stderr = old_stderr
                 _pose = None
                 _has_mediapipe = False
         else:
