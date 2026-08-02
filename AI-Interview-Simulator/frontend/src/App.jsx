@@ -5,7 +5,7 @@ import QuestionPanel from './components/QuestionPanel';
 import Camera from './components/Camera';
 import Dashboard from './components/Dashboard';
 import PastInterviews from './components/PastInterviews';
-import { mockInterviews } from './utils/interviewerData';
+import { mockInterviews, getRandomQuestions } from './utils/interviewerData';
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -15,6 +15,7 @@ function App() {
   const [view, setView] = useState('home');
   const [company, setCompany] = useState('google');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [interviewQuestions, setInterviewQuestions] = useState([]);
   const [answers, setAnswers] = useState([]);
   const [finalScores, setFinalScores] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -81,6 +82,8 @@ function App() {
   };
 
   const handleStartInterview = () => {
+    const selectedQs = getRandomQuestions(interviewerData.questions);
+    setInterviewQuestions(selectedQs);
     setCurrentQuestionIndex(0);
     setAnswers([]);
     setFinalScores(null);
@@ -90,7 +93,7 @@ function App() {
   const handleAnswerSubmit = async (answer) => {
     setAnswers((prev) => [...prev, answer]);
 
-    if (currentQuestionIndex < interviewerData.questions.length - 1) {
+    if (currentQuestionIndex < interviewQuestions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
     } else {
       setIsAnalyzing(true);
@@ -240,8 +243,8 @@ function App() {
               <QuestionPanel
                 company={company}
                 questionIndex={currentQuestionIndex}
-                totalQuestions={interviewerData.questions.length}
-                question={interviewerData.questions[currentQuestionIndex]}
+                totalQuestions={interviewQuestions.length}
+                question={interviewQuestions[currentQuestionIndex]}
                 onSubmit={handleAnswerSubmit}
                 isAnalyzing={isAnalyzing}
               />
@@ -250,7 +253,7 @@ function App() {
                 {answers.length > 0 && (
                   <div className="answer-preview">
                     <h4>Your Responses</h4>
-                    <p>{answers.length} of {interviewerData.questions.length} answered</p>
+                    <p>{answers.length} of {interviewQuestions.length} answered</p>
                   </div>
                 )}
               </div>
