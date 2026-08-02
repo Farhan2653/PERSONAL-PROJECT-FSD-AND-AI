@@ -3,6 +3,7 @@ import React, { useRef, useEffect, useState } from 'react';
 function Camera({ autoStart = false }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const faceCanvasRef = useRef(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [faceDetected, setFaceDetected] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
@@ -18,11 +19,12 @@ function Camera({ autoStart = false }) {
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(() => {});
       }
       streamRef.current = stream;
       setCameraActive(true);
       setErrorMsg(null);
-      setTimeout(() => analyzeFrame(), 1000);
+      setTimeout(() => analyzeFrame(), 300);
     } catch (err) {
       console.warn('Camera access denied or unavailable:', err.message);
       setErrorMsg('Camera access denied. Please allow camera permissions and refresh.');
@@ -42,9 +44,15 @@ function Camera({ autoStart = false }) {
     }
 
     const ctx = canvas.getContext('2d', { willReadFrequent: true });
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+    }
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.translate(-canvas.width, 0);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
 
     let detected = false;
     try {
@@ -54,9 +62,8 @@ function Camera({ autoStart = false }) {
       const h = canvas.height;
 
       let skinPixels = 0;
-      let totalBrightness = 0;
-      let brightPixels = 0;
-      const step = 4;
+      const step = 3;
+      const totalPixels = (w * h) / (step * step);
 
       for (let y = 0; y < h; y += step) {
         for (let x = 0; x < w; x += step) {
@@ -66,38 +73,37 @@ function Camera({ autoStart = false }) {
           const b = data[i + 2];
 
           const brightness = (r + g + b) / 3;
-          totalBrightness += brightness;
-          if (brightness > 10) brightPixels++;
 
-          if (
-            r > 60 && g > 40 && b > 20 &&
-            r > g && r > b &&
-            Math.abs(r - g) > 20 &&
-            Math.abs(g - b) > 20 &&
-            r > 95 && g > 40 && b > 5 &&
-            r < 255 && g < 235 && b < 200
-          ) {
-            skinPixels++;
+          if (brightness > 5) {
+            if (
+              r > 50 && g > 30 && b > 15 &&
+              r > g && r > b &&
+              r < 255 && g < 255 && b < 200 &&
+              Math.abs(r - g) > 5 &&
+              Math.abs(g - b) > 5
+            ) {
+              skinPixels++;
+            }
           }
         }
       }
 
-      const skinRatio = skinPixels / (brightPixels || 1);
-      detected = skinRatio > 0.02 && skinPixels > 50;
+      const skinRatio = skinPixels / totalPixels;
+      detected = skinRatio > 0.01 && skinPixels > 30;
     } catch (e) {
-      detected = Math.random() > 0.3;
+      detected = false;
     }
 
     if (detected) {
       consecutiveDetectionRef.current++;
-      if (consecutiveDetectionRef.current >= 2) {
+      if (consecutiveDetectionRef.current >= 3) {
         setFaceDetected(true);
       }
     } else {
       if (consecutiveDetectionRef.current > 0) {
         consecutiveDetectionRef.current--;
       }
-      if (consecutiveDetectionRef.current <= 0) {
+      if (consecutiveDetectionRef.current === 0) {
         setFaceDetected(false);
       }
     }
@@ -119,15 +125,10 @@ function Camera({ autoStart = false }) {
     setCameraActive(false);
     setFaceDetected(false);
     consecutiveDetectionRef.current = 0;
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
   }
 
   useEffect(() => {
-    if (autoStart) {
+    if (autoStart && !cameraActive) {
       const timer = setTimeout(() => startCamera(), 500);
       return () => clearTimeout(timer);
     }
@@ -175,7 +176,7 @@ function Camera({ autoStart = false }) {
           style={{ display: cameraActive ? 'block' : 'none', width: '100%', height: 'auto', borderRadius: '8px' }}
         />
         {!cameraActive && (
-          <div className="camera-placeholder">
+          <div className="camera-placeholder" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
             <span>Camera Off</span>
           </div>
         )}
