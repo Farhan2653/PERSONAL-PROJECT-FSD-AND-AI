@@ -185,7 +185,7 @@ function Camera({ autoStart = false }) {
       {cameraActive && (
         <div className={`camera-status ${faceDetected ? 'detected' : 'live'}`}>
           <span className="status-dot" />
-          {faceDetected ? 'Face detected' : 'No face detected'}
+          {faceDetected ? 'Live' : 'Live'}
         </div>
       )}
       {cameraActive && (
