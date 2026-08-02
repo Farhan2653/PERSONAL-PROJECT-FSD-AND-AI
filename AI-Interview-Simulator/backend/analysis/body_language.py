@@ -1,23 +1,52 @@
 import cv2
 import numpy as np
+import sys
+from io import StringIO
 
 _has_mediapipe = False
-try:
-    import mediapipe as mp
-    if hasattr(mp, 'solutions'):
-        _mp_pose = mp.solutions.pose
-        _pose = _mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
-        _has_mediapipe = True
-except Exception:
-    pass
+_pose = None
+_init_attempted = False
+
+def _try_init_mediapipe():
+    global _has_mediapipe, _pose, _init_attempted
+    if _init_attempted:
+        return
+    _init_attempted = True
+    try:
+        import mediapipe as mp
+        if hasattr(mp, 'solutions'):
+            try:
+                _mp_pose = mp.solutions.pose
+                old_stderr = sys.stderr
+                sys.stderr = StringIO()
+                _pose = _mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+                sys.stderr = old_stderr
+                _has_mediapipe = True
+            except Exception:
+                sys.stderr = old_stderr
+                _pose = None
+                _has_mediapipe = False
+        else:
+            _has_mediapipe = False
+    except Exception:
+        _has_mediapipe = False
 
 
 class BodyLanguageAnalyzer:
     def __init__(self):
-        self._pose = _pose if _has_mediapipe else None
-        self._mp_available = _has_mediapipe
+        self._pose = None
+        self._mp_available = False
+        self._init_attempted = False
+
+    def _ensure_mp(self):
+        if not self._init_attempted:
+            self._init_attempted = True
+            _try_init_mediapipe()
+            self._pose = _pose
+            self._mp_available = _has_mediapipe
 
     def analyze_frame(self, frame):
+        self._ensure_mp()
         result = {
             "pose_detected": False,
             "open_posture": 0.0,

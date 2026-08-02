@@ -1,38 +1,60 @@
 import cv2
 import numpy as np
+import sys
+import os
+from io import StringIO
 
-try:
-    import mediapipe as mp
-    _mp_available = True
-    _has_solutions = hasattr(mp, 'solutions')
-except Exception:
-    _mp_available = False
-    _has_solutions = False
+_mp_available = False
+_has_solutions = False
+_face_mesh = None
 
-if _has_solutions:
+def _try_import_mediapipe():
+    global _mp_available, _has_solutions, _face_mesh
+    if _face_mesh is not None:
+        return
     try:
-        mp_face_mesh = mp.solutions.face_mesh
-        _face_mesh = mp_face_mesh.FaceMesh(
-            max_num_faces=1,
-            refine_landmarks=True,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5,
-        )
+        import mediapipe as mp
+        _has_solutions = hasattr(mp, 'solutions')
+        if _has_solutions:
+            try:
+                old_stderr = sys.stderr
+                sys.stderr = StringIO()
+                mp_face_mesh = mp.solutions.face_mesh
+                _face_mesh = mp_face_mesh.FaceMesh(
+                    max_num_faces=1,
+                    refine_landmarks=True,
+                    min_detection_confidence=0.5,
+                    min_tracking_confidence=0.5,
+                )
+                sys.stderr = old_stderr
+                _mp_available = True
+            except Exception:
+                sys.stderr = old_stderr
+                _face_mesh = None
+                _mp_available = False
+        else:
+            _mp_available = False
     except Exception:
-        _face_mesh = None
         _mp_available = False
-else:
-    _face_mesh = None
-    _mp_available = False
+        _has_solutions = False
 
 
 class FaceAnalyzer:
     def __init__(self):
-        self._mesh = _face_mesh
-        self._mp_available = _mp_available and self._mesh is not None
+        self._mesh = None
+        self._mp_available = False
         self.frame_count = 0
+        self._init_mp = False
+
+    def _ensure_mp(self):
+        if not self._init_mp:
+            self._init_mp = True
+            _try_import_mediapipe()
+            self._mesh = _face_mesh
+            self._mp_available = _mp_available and self._mesh is not None
 
     def analyze_frame(self, frame):
+        self._ensure_mp()
         self.frame_count += 1
         h, w, _ = frame.shape
         result = {
@@ -62,7 +84,7 @@ class FaceAnalyzer:
                     head_offset = np.sqrt((nose_tip_x - face_center_x) ** 2 + (nose_tip_y - face_center_y) ** 2)
                     result["head_pose"]["yaw"] = min(head_offset / (w / 2), 1.0)
                     result["confidence_score"] = 0.5
-            except Exception as e:
+            except Exception:
                 pass
 
         if not result["face_detected"]:
